@@ -7,8 +7,11 @@ import edu.eci.arsw.blueprints.persistence.BlueprintPersistenceException;
 import edu.eci.arsw.blueprints.services.BlueprintsServices;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -56,7 +59,7 @@ public class BlueprintsAPIController {
             services.addNewBlueprint(bp);
             return ResponseEntity.status(HttpStatus.CREATED).build();
         } catch (BlueprintPersistenceException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -65,6 +68,9 @@ public class BlueprintsAPIController {
     public ResponseEntity<?> addPoint(@PathVariable String author, @PathVariable String bpname,
                                       @RequestBody Point p) {
         try {
+            if (p == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "El punto es requerido"));
+            }
             services.addPoint(author, bpname, p.x(), p.y());
             return ResponseEntity.status(HttpStatus.ACCEPTED).build();
         } catch (BlueprintNotFoundException e) {
@@ -72,9 +78,15 @@ public class BlueprintsAPIController {
         }
     }
 
+    @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
+    public ResponseEntity<Map<String, String>> handleBadRequest(Exception ex) {
+        return ResponseEntity.badRequest().body(Map.of("error", "Error"));
+    }
+
     public record NewBlueprintRequest(
             @NotBlank String author,
             @NotBlank String name,
+            @NotNull
             @Valid java.util.List<Point> points
     ) { }
 }
